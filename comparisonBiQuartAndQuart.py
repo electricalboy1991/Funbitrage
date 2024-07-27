@@ -24,16 +24,19 @@ for symbol in symbols:
     days = (symbol_data['date'] - symbol_data['date'].min()).dt.days + 1
 
     # Collect values for day 1 and day 92, excluding BTCUSD_241227
-    if symbol != 'BTCUSD_241227':
-        day_1_value = symbol_data[symbol_data['date'] == symbol_data['date'].min()]['괴리율'].values
-        if len(day_1_value) > 0:
-            day_1_values.append(day_1_value[0])
 
-        day_92_value = symbol_data[(symbol_data['date'] - symbol_data['date'].min()).dt.days == 91]['괴리율'].values
-        if len(day_92_value) > 0:
-            day_92_values.append(day_92_value[0])
+    day_1_value = symbol_data[symbol_data['date'] == symbol_data['date'].min()]['괴리율'].values
+    if len(day_1_value) > 0:
+        day_1_values.append(day_1_value[0])
+
+    day_92_value = symbol_data[(symbol_data['date'] - symbol_data['date'].min()).dt.days == 91]['괴리율'].values
+    if len(day_92_value) > 0:
+        day_92_values.append(day_92_value[0])
 
     fig.add_trace(go.Scatter(x=days, y=symbol_data['괴리율'], mode='lines', name=symbol))
+
+
+day_1_values.pop()
 
 # Calculate mean, median, and standard deviation for day 1 and day 92
 mean_day_1 = sum(day_1_values) / len(day_1_values) if day_1_values else 0
