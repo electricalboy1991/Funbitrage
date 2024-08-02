@@ -4,7 +4,7 @@ import plotly.graph_objs as go
 import pandas as pd
 
 # 데이터 로드
-df = pd.read_excel("C:/Users/world/PycharmProjects/Funbitrage/GPT용.xlsx")
+df = pd.read_excel("C:/Users/world/PycharmProjects/Funbitrage/GPT용3.xlsx")
 
 # date 열을 datetime 형식으로 변환
 df['date'] = pd.to_datetime(df['date'])
@@ -100,3 +100,4 @@ def update_graph(selected_symbols):
 # 서버 실행
 if __name__ == '__main__':
     app.run_server(debug=True)
+
