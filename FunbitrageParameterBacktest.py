@@ -18,17 +18,20 @@ symbols_sorted = df.groupby('symbol')['date'].min().sort_values().index
 # 전체 포지션 기간 계산 및 수식 계산
 def calculate_total_position_duration_and_formula(positions):
     total_duration = 0
-    total_formula_value = 0
+    total_formula_value = 1  # 누적 곱 수익률을 1로 초기화
 
     for position in positions:
         duration = (position['exit_date'] - position['entry_date']).days
         entry_value = position['entry_y']
         exit_value = position['exit_y']
         formula_value = 0.03 * duration + (exit_value - entry_value) - 0.1
-        total_duration += duration
-        total_formula_value += formula_value
 
-    return total_duration, total_formula_value
+        # 누적 곱 수익률 계산 (1 + 0.01 * formula_value)
+        total_formula_value *= (1 + 18*0.01 * formula_value)
+
+        total_duration += duration
+
+    return total_duration, 100*(total_formula_value-1)
 
 # Dash 레이아웃 설정
 app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirection': 'column'}, children=[
@@ -224,7 +227,7 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
             hovermode='closest',
             showlegend=True
         )
-    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {18*total_formula_value:.2f} %"
+    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {total_formula_value:.2f} %"
 
 # 서버 실행
 if __name__ == '__main__':
