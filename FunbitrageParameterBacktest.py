@@ -24,7 +24,7 @@ def calculate_total_position_duration_and_formula(positions):
         duration = (position['exit_date'] - position['entry_date']).days
         entry_value = position['entry_y']
         exit_value = position['exit_y']
-        formula_value = 0.03 * duration + (exit_value - entry_value) - 0.01
+        formula_value = 0.03 * duration + (exit_value - entry_value) - 0.1
         total_duration += duration
         total_formula_value += formula_value
 
@@ -35,7 +35,7 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
     html.Div(style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
         html.Div(children=[
             html.H1(id='formula-value', style={'flex': '0 1 auto', 'display': 'inline-block'}),
-            html.Span("% 레버리지18배*[0.01*3*일수+(청산-진입)+0.035*2(수수료*2)+0.03(슬리피지 등)]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
+            html.Span("% 레버리지18배*[0.01*3*일수+(청산-진입)-0.035*2(수수료*2)-0.03(슬리피지 등)]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
         ]),
         html.H2(id='position-duration', style={'flex': '0 1 auto', 'margin': 'auto 0'})
     ]),
@@ -55,10 +55,22 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
                 min=5,
                 max=15,
                 step=0.1,
-                value=8,
+                value=10,
                 marks={i: str(i) for i in range(5, 16)}
             ),
             html.Div(id='slider-value', style={'margin-left': '20px', 'display': 'inline-block'})
+        ]),
+        html.Div(id='entry-slider-container', style={'margin-top': '10px'}, children=[
+            html.Label('진입 점선 기준값:', style={'margin-right': '10px'}),
+            dcc.Slider(
+                id='entry-threshold-slider',
+                min=3,
+                max=7,
+                step=0.1,
+                value=5,
+                marks={i: str(i) for i in range(0, 11)}
+            ),
+            html.Div(id='entry-slider-value', style={'margin-left': '20px', 'display': 'inline-block'})
         ])
     ], style={'margin-bottom': '10px', 'flex': '0 1 auto'}),
 
@@ -74,7 +86,7 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
     )
 ])
 
-def perform_backtest(symbols, df, exit_threshold):
+def perform_backtest(symbols, df, entry_threshold, exit_threshold):
     positions = []
     current_position_end = None
 
@@ -85,10 +97,10 @@ def perform_backtest(symbols, df, exit_threshold):
         end_date = first_date + pd.Timedelta(days=181)
         expiry_date = symbol_df['date'].max()
 
-        entry_slope = -5 / 181  # y2 - y1 / x2 - x1 for entry line
+        entry_slope = -entry_threshold / 181  # y2 - y1 / x2 - x1 for entry line
         exit_slope = -exit_threshold / 181  # y2 - y1 / x2 - x1 for exit line
 
-        symbol_df['진입 점선'] = 5 + entry_slope * (symbol_df['date'] - first_date).dt.days
+        symbol_df['진입 점선'] = entry_threshold + entry_slope * (symbol_df['date'] - first_date).dt.days
         symbol_df['청산 점선'] = exit_threshold + exit_slope * (symbol_df['date'] - first_date).dt.days
 
         for i in range(len(symbol_df)):
@@ -107,7 +119,7 @@ def perform_backtest(symbols, df, exit_threshold):
                     'symbol': symbol,
                     'entry_date': entry_date,
                     'exit_date': exit_date,
-                    'entry_line': {'x': [first_date, end_date], 'y': [5, 0]},
+                    'entry_line': {'x': [first_date, end_date], 'y': [entry_threshold, 0]},
                     'exit_line': {'x': [first_date, end_date], 'y': [exit_threshold, 0]},
                     'entry_y': entry_y,
                     'exit_y': exit_y
@@ -122,17 +134,19 @@ def perform_backtest(symbols, df, exit_threshold):
     [dash.dependencies.Output('example-graph', 'figure'),
      dash.dependencies.Output('position-duration', 'children'),
      dash.dependencies.Output('slider-value', 'children'),
+     dash.dependencies.Output('entry-slider-value', 'children'),
      dash.dependencies.Output('formula-value', 'children')],
     [dash.dependencies.Input('symbol-dropdown', 'value'),
-     dash.dependencies.Input('exit-threshold-slider', 'value')]
+     dash.dependencies.Input('exit-threshold-slider', 'value'),
+     dash.dependencies.Input('entry-threshold-slider', 'value')]
 )
-def update_graph(selected_symbols, exit_threshold):
+def update_graph(selected_symbols, exit_threshold, entry_threshold):
     data = []
 
     if not selected_symbols:
         selected_symbols = symbols_sorted
 
-    positions = perform_backtest(selected_symbols, df, exit_threshold)
+    positions = perform_backtest(selected_symbols, df, entry_threshold, exit_threshold)
     total_position_duration, total_formula_value = calculate_total_position_duration_and_formula(positions)
     filtered_df = df[df['symbol'].isin(selected_symbols)]
 
@@ -210,7 +224,7 @@ def update_graph(selected_symbols, exit_threshold):
             hovermode='closest',
             showlegend=True
         )
-    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"수익률: {18*total_formula_value:.2f} %"
+    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {18*total_formula_value:.2f} %"
 
 # 서버 실행
 if __name__ == '__main__':
