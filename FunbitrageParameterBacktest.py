@@ -241,7 +241,7 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
         )
     }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {total_formula_value:.2f} %"
 
-# # 새롭게 추가할 수익률 계산 및 엑셀 저장 함수
+# 새롭게 추가할 수익률 계산 및 엑셀 저장 함수
 # def generate_profitability_excel(df, symbols, exit_threshold_range, entry_threshold_range):
 #     results = []
 #
