@@ -7,14 +7,11 @@ import pandas as pd
 df = pd.read_excel("C:/Users/world/PycharmProjects/Funbitrage/GPT용3.xlsx")
 
 # 추가 파일에서 펀딩비 데이터 로드
-df_funding = pd.read_excel("C:/Users/world/PycharmProjects/Funbitrage/GPT_종합본_OnlyFundingFee.xlsx")
+df_funding = pd.read_excel("C:/Users/world/PycharmProjects/Funbitrage/GPT_종합본_OnlyFundingFee_coinM.xlsx")
 
 # date 열을 datetime 형식으로 변환
 df['date'] = pd.to_datetime(df['date'])
 df_funding['date'] = pd.to_datetime(df_funding['date'])
-
-# date 열을 datetime 형식으로 변환
-df['date'] = pd.to_datetime(df['date'])
 
 # Dash 애플리케이션 생성
 app = dash.Dash(__name__)
@@ -34,8 +31,7 @@ def calculate_total_position_duration_and_formula(positions):
 
         # 해당 포지션 기간 동안의 펀딩비 평균 계산
         funding_period = df_funding[(df_funding['date'] >= position['entry_date']) &
-                                    (df_funding['date'] <= position['exit_date']) &
-                                    (df_funding['symbol'] == position['symbol'])]
+                                    (df_funding['date'] <= position['exit_date'])]
         funding_avg = funding_period['펀딩비'].mean() if not funding_period.empty else 0.03  # 평균 계산, 없을 경우 0.01 기본값
 
         # 누적 곱 수익률 계산 (1 + funding_avg * formula_value)
@@ -52,7 +48,8 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
             html.H1(id='formula-value', style={'flex': '0 1 auto', 'display': 'inline-block'}),
             html.Span("복리 수익률 % Lev 20배*[해당 기간 평균 펀비*일수+(청산-진입)-0.1(수수료*2, 슬리피지 등]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
         ]),
-        html.H2(id='position-duration', style={'flex': '0 1 auto', 'margin': 'auto 0'})
+        html.H2(id='position-duration', style={'flex': '0 1 auto', 'margin': 'auto 0'}),
+        html.Div(id='funding-avg', style={'flex': '0 1 auto', 'margin-right': '10px'})  # 펀딩비 평균 표시
     ]),
 
     html.Div([
@@ -150,7 +147,8 @@ def perform_backtest(symbols, df, entry_threshold, exit_threshold):
      dash.dependencies.Output('position-duration', 'children'),
      dash.dependencies.Output('slider-value', 'children'),
      dash.dependencies.Output('entry-slider-value', 'children'),
-     dash.dependencies.Output('formula-value', 'children')],
+     dash.dependencies.Output('formula-value', 'children'),
+     dash.dependencies.Output('funding-avg', 'children')],  # 새로운 Output 추가
     [dash.dependencies.Input('symbol-dropdown', 'value'),
      dash.dependencies.Input('exit-threshold-slider', 'value'),
      dash.dependencies.Input('entry-threshold-slider', 'value')]
@@ -164,6 +162,18 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
     positions = perform_backtest(selected_symbols, df, entry_threshold, exit_threshold)
     total_position_duration, total_formula_value = calculate_total_position_duration_and_formula(positions)
     filtered_df = df[df['symbol'].isin(selected_symbols)]
+
+    # 포지션 구간에 따른 펀딩비 평균 계산
+    total_funding_avg = 0
+    for position in positions:
+        funding_period = df_funding[(df_funding['date'] >= position['entry_date']) &
+                                    (df_funding['date'] <= position['exit_date'])]
+        funding_avg = funding_period['펀딩비'].mean() if not funding_period.empty else 0.03  # 평균 계산
+        total_funding_avg += funding_avg
+
+    # 포지션의 평균 펀딩비
+    if len(positions) > 0:
+        total_funding_avg /= len(positions)
 
     for position in positions:
         symbol_df = filtered_df[filtered_df['symbol'] == position['symbol']]
@@ -239,35 +249,7 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
             hovermode='closest',
             showlegend=True
         )
-    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {total_formula_value:.2f} %"
-
-# 새롭게 추가할 수익률 계산 및 엑셀 저장 함수
-# def generate_profitability_excel(df, symbols, exit_threshold_range, entry_threshold_range):
-#     results = []
-#
-#     for exit_threshold in exit_threshold_range:
-#         for entry_threshold in entry_threshold_range:
-#             positions = perform_backtest(symbols, df, entry_threshold, exit_threshold)
-#             _, total_formula_value = calculate_total_position_duration_and_formula(positions)
-#             results.append({
-#                 'Exit Threshold': exit_threshold,
-#                 'Entry Threshold': entry_threshold,
-#                 'Profitability (%)': total_formula_value
-#             })
-#
-#     # 데이터프레임으로 변환
-#     results_df = pd.DataFrame(results)
-#
-#     # 엑셀로 저장
-#     results_df.to_excel("profitability_results.xlsx", index=False)
-#     print("Excel file saved as 'profitability_results.xlsx'.")
-#
-# # exit-threshold-slider와 entry-threshold-slider 범위를 정의하고 함수 호출
-# exit_threshold_range = [round(i * 0.1, 1) for i in range(60, 171)]  # 5.0 to 15.0
-# entry_threshold_range = [round(i * 0.1, 1) for i in range(40, 61)]  # 3.0 to 7.0
-#
-# # 백테스트 실행 후 엑셀 파일 생성
-# generate_profitability_excel(df, symbols_sorted, exit_threshold_range, entry_threshold_range)
+    }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {total_formula_value:.2f} %", f"평균 펀딩비: {total_funding_avg:.4f}"
 
 if __name__ == '__main__':
     app.run_server(debug=True)
