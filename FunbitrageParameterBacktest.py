@@ -42,6 +42,7 @@ def calculate_total_position_duration_and_formula(positions):
     return total_duration, 100 * (total_formula_value - 1)
 
 # Dash 레이아웃 설정
+# Dash 레이아웃 설정
 app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirection': 'column'}, children=[
     html.Div(style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
         html.Div(children=[
@@ -49,7 +50,7 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
             html.Span("복리 수익률 % Lev 20배*[해당 기간 평균 펀비*일수+(청산-진입)-0.1(수수료*2, 슬리피지 등]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
         ]),
         html.H2(id='position-duration', style={'flex': '0 1 auto', 'margin': 'auto 0'}),
-        html.Div(id='funding-avg', style={'flex': '0 1 auto', 'margin-right': '10px'})  # 펀딩비 평균 표시
+        html.H2(id='funding-avg', style={'flex': '0 1 auto', 'margin-right': '10px'})  # 글씨 크기와 굵기를 H2로 설정
     ]),
 
     html.Div([
