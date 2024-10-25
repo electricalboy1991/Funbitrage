@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, Input, Output, State
 
 # Load the data
-file_path = 'C:/Users/world/PycharmProjects/Funbitrage/GPT용3.xlsx'
+file_path = 'GPT용3.xlsx'
 data = pd.read_excel(file_path)
 
 # Convert the date column to datetime format
