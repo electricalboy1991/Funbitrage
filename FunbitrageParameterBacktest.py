@@ -7,7 +7,7 @@ import pandas as pd
 df = pd.read_excel(r"C:\Users\world\PycharmProjects\Funbitrage\GPT용3.xlsx")
 
 # 추가 파일에서 펀딩비 데이터 로드
-df_funding = pd.read_excel(r"C:\Users\world\PycharmProjects\Funbitrage\GPT_종합본_OnlyFundingFee_coinM.xlsx")
+df_funding = pd.read_excel(r"C:\Users\world\PycharmProjects\Funbitrage\GPT_종합본_OnlyFundingFee_coinM_241025.xlsx")
 
 # date 열을 datetime 형식으로 변환
 df['date'] = pd.to_datetime(df['date'])
