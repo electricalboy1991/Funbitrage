@@ -2,6 +2,7 @@ import dash
 from dash import dcc, html
 import plotly.graph_objs as go
 import pandas as pd
+from datetime import timedelta
 
 # 데이터 로드
 df = pd.read_excel(r"GPT용3.xlsx")
@@ -32,18 +33,23 @@ def calculate_total_position_duration_and_formula(positions):
                                     (df_funding['date'] <= position['exit_date'])]
         funding_avg = funding_period['펀딩비'].mean() if not funding_period.empty else 0.03  # 평균 계산, 없을 경우 기본값
 
-        # 누적 곱 수익률 계산
-        total_formula_value *= (1 + 0.01 * 20 * (funding_avg * duration + (exit_value - entry_value) - 0.1))
+        # 누적 곱 수익률 계산 (롤오버 포함 여부 확인)
+        if position.get('rollover_date') is not None:
+            total_formula_value *= (1 + 0.01 * 20 * (funding_avg * duration + (exit_value - entry_value) - 0.07))
+        else:
+            total_formula_value *= (1 + 0.01 * 20 * (funding_avg * duration + (exit_value - entry_value) - 0.1))
+
         total_duration += duration
 
     return total_duration, 100 * (total_formula_value - 1)
+
 
 # Dash 레이아웃 설정
 app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirection': 'column'}, children=[
     html.Div(style={'display': 'flex', 'justifyContent': 'space-between'}, children=[
         html.Div(children=[
             html.H1(id='formula-value', style={'flex': '0 1 auto', 'display': 'inline-block'}),
-            html.Span("복리 수익률 % Lev 20배*[해당 기간 평균 펀비*일수+(청산-진입)-0.1(수수료*2, 슬리피지 등]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
+            html.Span("수익률 % Lev 20배*[해당 기간 평균 펀비*일수-[진입-청산]-0.1 (수수료*2, 슬리피지, 진입 편차) or 0.07 (Rollover) ]", style={'font-size': '70%', 'margin-left': '10px', 'vertical-align': 'middle'})
         ]),
         html.H2(id='position-duration', style={'flex': '0 1 auto', 'margin': 'auto 0'}),
         html.H2(id='funding-avg', style={'flex': '0 1 auto', 'margin-right': '10px'})  # 글씨 크기와 굵기를 H2로 설정
@@ -89,10 +95,11 @@ app.layout = html.Div(style={'height': '100vh', 'display': 'flex', 'flexDirectio
             config={
                 'scrollZoom': True
             },
-            style={'height': '100%'}
+            style={'height': '100%'}  # 그래프 높이를 100%로 설정
         ),
-        style={'flex': '1 1 auto'}
+        style={'flex': '2 1 auto'}  # 다른 요소보다 2배의 영역을 차지하도록 설정
     )
+
 ])
 
 def perform_backtest(symbols, df, entry_threshold, exit_threshold):
@@ -204,14 +211,24 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
         entry_y_value = symbol_df[symbol_df['date'] == position['entry_date']]['괴리율'].values[0] if not symbol_df[symbol_df['date'] == position['entry_date']].empty else 0
         exit_y_value = symbol_df[symbol_df['date'] == (position['exit_date'] or position['rollover_date'])]['괴리율'].values[0] if not symbol_df[symbol_df['date'] == (position['exit_date'] or position['rollover_date'])].empty else 0
 
-        data.append(go.Scatter(
-            x=[position['entry_date'], position['exit_date'] or position['rollover_date']],
-            y=[entry_y_value, exit_y_value],
-            fill='tozeroy',
-            fillcolor='rgba(0, 0, 255, 0.2)',
-            mode='none',
-            name=f'{position["symbol"]} 포지션'
-        ))
+        if position['rollover_date']:
+            data.append(go.Scatter(
+                x=[position['entry_date'], position['rollover_date']],
+                y=[entry_y_value, exit_y_value],
+                fill='tozeroy',
+                fillcolor='rgba(0, 255, 0, 0.2)',  # 초록색 음영
+                mode='none',
+                name=f'{position["symbol"]} 롤오버 포지션'
+            ))
+        else:
+            data.append(go.Scatter(
+                x=[position['entry_date'], position['exit_date']],
+                y=[entry_y_value, exit_y_value],
+                fill='tozeroy',
+                fillcolor='rgba(0, 0, 255, 0.2)',  # 파란색 음영
+                mode='none',
+                name=f'{position["symbol"]} 포지션'
+            ))
 
         data.append(go.Scatter(
             x=[position['entry_date']],
@@ -241,7 +258,7 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
     return {
         'data': data,
         'layout': go.Layout(
-            title='펀비트라지 분석',
+            # title='펀비트라지 분석',  # 이 줄을 제거
             xaxis=dict(title='날짜'),
             yaxis=dict(
                 title='괴리율 (%)',
@@ -257,5 +274,6 @@ def update_graph(selected_symbols, exit_threshold, entry_threshold):
         )
     }, f"Position 기간 : {total_position_duration}일", f"{exit_threshold}", f"{entry_threshold}", f"수익률: {total_formula_value:.2f} %", f"평균 펀딩비: {total_funding_avg:.4f}"
 
+
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, use_reloader=False) # debug 할 때 사용
